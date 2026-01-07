@@ -1,0 +1,13 @@
+opencv-python
+numpy
+mtcnn
+keras-facenet
+tensorflow
+scikit-learn
+pymongo
+matplotlib
+fastapi
+uvicorn
+python-dotenv
+cloudinary
+python-multipart
