@@ -14,3 +14,5 @@ venv/
 
 # Dataset
 dataset/
+
+yolov8n.pt

@@ -11,3 +11,8 @@ uvicorn
 python-dotenv
 cloudinary
 python-multipart
+ultralytics
+retina-face
+tf-keras
+insightface
+onnxruntime

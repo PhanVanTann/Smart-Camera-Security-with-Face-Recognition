@@ -1,9 +1,14 @@
+import os
 from pymongo import MongoClient
-from app.core.config import MONGO_URI, MONGO_DB
+from dotenv import load_dotenv
 
-client = MongoClient(MONGO_URI)
+load_dotenv()
 
+MONGODB_URI = os.getenv("MONGODB_URI")
+MONGO_DB = os.getenv("NAME_DB")
+print("Mongo URI:", MONGODB_URI)
+
+client = MongoClient(MONGODB_URI)
 db = client[MONGO_DB]
 
-# collections
 residents_collection = db["residents"]
