@@ -1,24 +1,16 @@
 import cv2
 import numpy as np
 from insightface.app import FaceAnalysis
-from modelsAI.INSIGHTFACE.model import cosine_sim
+from modelsAI.INSIGHTFACE.model import cosine_sim, get_face_embedding
 from  core.mongodb import residents_collection 
+from modelsAI.INSIGHTFACE.model import app 
 
-app = FaceAnalysis(name="buffalo_l")
-app.prepare(ctx_id=0)
-
-
-cap = cv2.VideoCapture(0)  # hoặc "video.mp4"
+cap = cv2.VideoCapture(0)  
 
 THRESHOLD = 0.6
-def get_face_embedding(img_path):
-    img = cv2.imread(img_path)
-    faces = app.get(img)
-    if len(faces) == 0:
-        return None
-    return faces[0].normed_embedding 
 
-emb_B = get_face_embedding("./app/anhchinhdien.jpg")
+
+face_db = {}
 for user in residents_collection.find({}):
     name = user.get("last_name", "N/A") + " " + user.get("first_name", "N/A")
     print("Checking user:", name)
@@ -27,14 +19,8 @@ for user in residents_collection.find({}):
         if vec is None:
             continue
         emb_A = np.array(vec, dtype=np.float32)
-        score = cosine_sim(emb_A, emb_B)
-        print(f"  Similarity with {name}: {score:.4f}")
-        if score >= THRESHOLD:
-            print(f" Match found: {name} with score {score:.4f}")
-face_db = {
-    name: emb_A,
-    "B": emb_B,
-}
+        face_db[name] = emb_A
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -43,7 +29,7 @@ while True:
     faces = app.get(frame)
 
     for face in faces:
-        emb = face.normed_embedding  # (512,)
+        emb = face.normed_embedding 
 
         name = "UNKNOWN"
         best_score = 0

@@ -1,5 +1,4 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from app.services.face_embedding_service import get_face_embedding_facenet
 from app.core.mongodb import residents_collection
 from bson import ObjectId
 from app.schemas.residentsSchema import ResidentCreate
@@ -32,6 +31,7 @@ async def upload_face(
 ):
     img_bytes = await image.read()
     nparr = np.frombuffer(img_bytes, np.uint8)
+     
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if img is None:
         raise HTTPException(status_code=400, detail="Invalid image")
