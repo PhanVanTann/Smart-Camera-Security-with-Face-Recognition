@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.core.mongodb import residents_collection
 from bson import ObjectId
 from app.schemas.residentsSchema import ResidentCreate
-from app.modelsAI.INSIGHTFACE.model import app as insightface_model_app
+from app.modelsAI.insightFace.model import app as insightface_model_app
 import cv2
 import numpy as np
 
