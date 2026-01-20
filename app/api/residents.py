@@ -40,7 +40,7 @@ async def upload_face(
     if len(faces) == 0:
         raise HTTPException(status_code=400, detail="No face detected")
 
- 
+    # Chọn mặt lớn nhất
     face = max(faces, key=lambda f: (f.bbox[2]-f.bbox[0])*(f.bbox[3]-f.bbox[1]))
 
     # Lấy embedding trực tiếp, không cần crop lại

@@ -14,5 +14,5 @@ python-multipart
 ultralytics
 retina-face
 tf-keras
-onnxruntime
 insightface
+onnxruntime
