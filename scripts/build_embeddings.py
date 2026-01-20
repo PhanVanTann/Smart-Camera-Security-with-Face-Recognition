@@ -1,5 +1,5 @@
 import os
-from app.services.face_embedding_service import get_face_embedding
+from app.services.faceEmbeddingService import get_face_embedding
 
 RESIDENT_DIR = "dataset/residents"
 
