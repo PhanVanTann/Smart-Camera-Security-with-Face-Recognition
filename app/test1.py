@@ -30,7 +30,8 @@ while True:
         name = "UNKNOWN"
         address = "N/A"
         best_score = 0
-
+        x1, y1, x2, y2 = map(int, face.bbox)
+        
         for k, db in face_db.items():
             score = cosine_sim(emb, db["embedding_vector"])
             if score > best_score:
@@ -41,7 +42,7 @@ while True:
             name = "UNKNOWN"
             address = "N/A"
 
-        x1, y1, x2, y2 = map(int, face.bbox)
+       
 
         if name == "UNKNOWN":
             color = (0, 0, 255)
