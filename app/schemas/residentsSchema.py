@@ -12,11 +12,4 @@ class ResidentCreate(BaseModel):
     age: Optional[int]
     address: Optional[str]
     embeddings: Optional[List[FaceEmbedding]] = []
-class ResidentResult(BaseModel):
-    id: str
-    first_name: str
-    last_name: str
-    age: Optional[int]
-    address: Optional[str]
-    embeddings: Optional[List[FaceEmbedding]] = []
 
