@@ -21,7 +21,7 @@ def get_face_embedding_facenet(img_bytes, model_app):
     if img is None:
         raise ValueError("Invalid image")
 
-    # Detect face
+    # STEP 1: Detect face trên ảnh gốc
     faces = model_app.get(img)
     if len(faces) == 0:
         raise ValueError("No face detected")
@@ -29,11 +29,20 @@ def get_face_embedding_facenet(img_bytes, model_app):
     # Chọn mặt lớn nhất
     face = max(faces, key=lambda f: (f.bbox[2]-f.bbox[0])*(f.bbox[3]-f.bbox[1]))
 
-    # Crop với margin
+    # STEP 2: Crop face
     x1, y1, x2, y2 = map(int, face.bbox)
     face_img = crop_face_with_margin(img, (x1, y1, x2, y2), margin=0.3)
 
-    # Lấy embedding trực tiếp từ numpy array
+    # STEP 3: UNet clean CHỈ cropped face (approach đúng!)
+    try:
+        from app.modelsAI.unet.segmentaion import segment_face
+        print("[UNet] Cleaning cropped face...")
+        face_img = segment_face(face_img)  # Clean chỉ crop
+        print("[UNet] Face cleaned")
+    except Exception as e:
+        print(f"[UNet] Error: {e}, using original crop")
+
+    # STEP 4: Extract embedding từ cleaned crop
     embedding = get_face_embedding(face_img, model_app)
 
     if embedding is None:

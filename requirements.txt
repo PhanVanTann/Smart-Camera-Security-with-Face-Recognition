@@ -16,3 +16,6 @@ retina-face
 tf-keras
 insightface
 onnxruntime
+torch
+torchvision
+segmentation-models-pytorch
