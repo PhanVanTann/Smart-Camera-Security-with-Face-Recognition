@@ -1,97 +1,81 @@
-import cv2
-from modelsAI.face_detector.detector import FaceDetector
-from modelsAI.facenet.model import get_embedding
-import numpy as np
-from core.mongodb import residents_collection as users_col
-face_detector = FaceDetector()
-cap = cv2.VideoCapture(0)
+from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QScrollArea
+from UI.sidebar import Sidebar
+from UI.createResident import CreateResidentForm
+from UI.camera import CameraWidget 
+from UI.listResident import ResidentListWidget
 
-FRAME_SKIP = 3
-frame_id = 0
-faces_cache = []
-next_id = 1
-SIM_THRESHOLD = 0.7
-embeddings_list = []
-user_ids = []
+class Dashboard(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Dashboard")
+        self.resize(1000, 600)
+       
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
 
-for user in users_col.find({}):
-    print("Loading user:", user["_id"])
-    for emb in user.get("embeddings", []):
-        vec = emb.get("vector")
-        if vec is None:
-            continue
-        print("Embedding type:", type(vec), len(vec) if hasattr(vec, "__len__") else "N/A")
-        if isinstance(vec, (list, np.ndarray)) and len(vec) == 512:
-            embeddings_list.append(vec)
-            user_ids.append(user["_id"])
+        layout = QHBoxLayout()
+        central_widget.setLayout(layout)
 
-if len(embeddings_list) > 0:
-    db_embeddings = np.stack([np.array(e, dtype=np.float32) for e in embeddings_list], axis=0)
-else:
-    db_embeddings = np.zeros((0, 512), dtype=np.float32)
+        self.sidebar = Sidebar()
+        layout.addWidget(self.sidebar)
 
-def crop_face_square(frame, bbox, margin=0.2):
-    x1, y1, x2, y2 = map(int, bbox)
-    h, w, _ = frame.shape
+        self.main_content = QWidget()
+        layout.addWidget(self.main_content)
+        self.main_content.setStyleSheet("background-color: #2c3e50;")
+        # Tạo form
+        self.create_resident_form = CreateResidentForm()
 
-    bw = x2 - x1
-    bh = y2 - y1
-    size = int(max(bw, bh) * (1 + margin))
+        # Kết nối nút
+        self.sidebar.btn_create.clicked.connect(self.show_create_form)
+        self.sidebar.btn_camera.clicked.connect(self.show_camera)
+        self.sidebar.btn_list.clicked.connect(self.show_resident_list)
+        self.show_resident_list()
 
-    cx = (x1 + x2) // 2
-    cy = (y1 + y2) // 2
+    def show_create_form(self):
+        self.clear_main_content()
+        if self.main_content.layout() is not None:
+            QWidget().setLayout(self.main_content.layout())
 
-    x1 = max(0, cx - size // 2)
-    y1 = max(0, cy - size // 2)
-    x2 = min(w, cx + size // 2)
-    y2 = min(h, cy + size // 2)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        create_resident_form = CreateResidentForm()
+        scroll.setWidget(create_resident_form)
 
-    face = frame[y1:y2, x1:x2]
-    if face.size == 0:
-        return None
+        layout = QVBoxLayout()
+        layout.addWidget(scroll)
+        self.main_content.setLayout(layout)
+    def show_resident_list(self):
+        self.clear_main_content()
+        layout = QVBoxLayout()
+        list_widget = ResidentListWidget()
+        layout.addWidget(list_widget)
+        self.main_content.setLayout(layout)
+    def show_camera(self):
+        self.clear_main_content()
+        if self.main_content.layout() is not None:
+            QWidget().setLayout(self.main_content.layout())
 
-    return face
-def cosine_sim(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+        layout = QVBoxLayout()
+        cam_widget = CameraWidget()
+        layout.addWidget(cam_widget)
+        self.main_content.setLayout(layout)
+    def clear_main_content(self):
+        layout = self.main_content.layout()
+        if layout is not None:
+            # Lấy tất cả widget trong layout
+            for i in reversed(range(layout.count())):
+                widget = layout.itemAt(i).widget()
+                if widget is not None:
+                    # Nếu là CameraWidget thì stop camera
+                    if isinstance(widget, CameraWidget):
+                        widget.stop_camera()
+                    widget.setParent(None)
+            QWidget().setLayout(layout)
+if __name__ == "__main__":
+    import sys
+    from PyQt6.QtWidgets import QApplication
 
-def identify_user_vectorized(embedding, db_embeddings, user_ids, threshold=0.7):
-    if len(db_embeddings) == 0:
-        return None, 0.0
-
-    embedding = np.array(embedding, dtype=np.float32)
-    db_embeddings = np.array(db_embeddings, dtype=np.float32)
-
-    # cosine similarity vì đã normalize
-    sims = np.dot(db_embeddings, embedding)
-
-    best_idx = np.argmax(sims)
-    best_sim = sims[best_idx]
-
-    if best_sim >= threshold:
-        return user_ids[best_idx], float(best_sim)
-    else:
-        return None, float(best_sim)
-img1 = cv2.imread("./app/test1.jpg")  # người A
-img2 = cv2.imread("./app/anhchinhdien.jpg")  # người B (hoặc A ảnh khác)
-
-assert img1 is not None and img2 is not None
-
-faces1 = face_detector.detect(img1)
-faces2 = face_detector.detect(img2)
-
-assert len(faces1) > 0 and len(faces2) > 0
-
-face1 = crop_face_square(img1, faces1[0]["bbox"])
-face2 = crop_face_square(img2, faces2[0]["bbox"])
-
-cv2.imwrite("debug_face1.jpg", face1)
-cv2.imwrite("debug_face2.jpg", face2)
-
-emb1 = get_embedding(face1)
-emb2 = get_embedding(face2)
-
-print("emb1 shape:", emb1.shape, "std:", emb1.std())
-print("emb2 shape:", emb2.shape, "std:", emb2.std())
-
-print("L2 distance:", np.linalg.norm(emb1 - emb2))
-print("Cosine similarity:", cosine_sim(emb1, emb2))
+    app = QApplication(sys.argv)
+    dashboard = Dashboard()
+    dashboard.show()
+    sys.exit(app.exec())

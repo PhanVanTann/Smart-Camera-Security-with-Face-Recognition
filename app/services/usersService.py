@@ -16,6 +16,7 @@ class usersService:
                 emb = np.array(vector, dtype=np.float32)
                 users[name] = {
                     "address": address,
+                    "age":user['age'],
                     "id": user['id'],
                     "embedding_vector": emb
                 }

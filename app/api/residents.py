@@ -62,3 +62,8 @@ async def upload_face(
         raise HTTPException(status_code=404, detail="Resident not found")
 
     return {"message": "Face added successfully"}
+
+@router.get("/get_all")
+async def get_residents():
+    residents = residents_collection.find()
+    return residents
