@@ -35,8 +35,8 @@ def has_mask( prediction_mask):
     mouth_ratio = mouth_pixels / total_pixels
 
     # THRESHOLD – bạn có thể tinh chỉnh
-    NOSE_THRESHOLD = 0.005
-    MOUTH_THRESHOLD = 0.01
+    NOSE_THRESHOLD = 0.010236
+    MOUTH_THRESHOLD = 0.004886
 
     has_mask = (nose_ratio < NOSE_THRESHOLD) and (mouth_ratio < MOUTH_THRESHOLD)
     return has_mask

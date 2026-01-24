@@ -1,94 +1,81 @@
-import cv2
-import numpy as np
-from modelsAI.insightFace.model import cosine_sim
-from modelsAI.insightFace.model import app 
-from dotenv import load_dotenv
-from services.usersService import usersService
-import os
-from utils.cropImage import cropImage
-from modelsAI.unet.segmentaion import segment_face
-load_dotenv()
-usersService = usersService()
-cap = cv2.VideoCapture(0)  
+from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QScrollArea
+from UI.sidebar import Sidebar
+from UI.createResident import CreateResidentForm
+from UI.camera import CameraWidget 
+from UI.listResident import ResidentListWidget
 
-THRESHOLD = float(os.getenv("THRESHOLD", 0.7))
+class Dashboard(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Dashboard")
+        self.resize(1000, 600)
+       
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
 
-face_db = {}
-users = usersService.getListUsers()
-for name, user_info in users.items():
-    face_db[name] = user_info
+        layout = QHBoxLayout()
+        central_widget.setLayout(layout)
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+        self.sidebar = Sidebar()
+        layout.addWidget(self.sidebar)
 
-    faces = app.get(frame)
-   
+        self.main_content = QWidget()
+        layout.addWidget(self.main_content)
+        self.main_content.setStyleSheet("background-color: #2c3e50;")
+        # Tạo form
+        self.create_resident_form = CreateResidentForm()
 
-    for face in faces:
-        x1, y1, x2, y2 = map(int, face.bbox)
-        cropped_face = cropImage(frame, (x1, y1, x2, y2))
-        has_mask = segment_face(cropped_face)
-        if has_mask:
-            cv2.rectangle(frame, (x1,y1), (x2,y2), (0, 0, 255), 2)
-            cv2.putText(
-            frame,
-            f"Deo khau trang",
-            (x1, y1 - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 0, 255),
-            2
-            ) 
-            continue
-            
-        emb = face.normed_embedding 
+        # Kết nối nút
+        self.sidebar.btn_create.clicked.connect(self.show_create_form)
+        self.sidebar.btn_camera.clicked.connect(self.show_camera)
+        self.sidebar.btn_list.clicked.connect(self.show_resident_list)
+        self.show_resident_list()
 
-        name = "UNKNOWN"
-        address = "N/A"
-        best_score = 0
+    def show_create_form(self):
+        self.clear_main_content()
+        if self.main_content.layout() is not None:
+            QWidget().setLayout(self.main_content.layout())
 
-        for k, db in face_db.items():
-            score = cosine_sim(emb, db["embedding_vector"])
-            if score > best_score:
-                best_score = score
-                name = k
-                address = db["address"]
-        if best_score < THRESHOLD:
-            name = "UNKNOWN"
-            address = "N/A"
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        create_resident_form = CreateResidentForm()
+        scroll.setWidget(create_resident_form)
 
-        
+        layout = QVBoxLayout()
+        layout.addWidget(scroll)
+        self.main_content.setLayout(layout)
+    def show_resident_list(self):
+        self.clear_main_content()
+        layout = QVBoxLayout()
+        list_widget = ResidentListWidget()
+        layout.addWidget(list_widget)
+        self.main_content.setLayout(layout)
+    def show_camera(self):
+        self.clear_main_content()
+        if self.main_content.layout() is not None:
+            QWidget().setLayout(self.main_content.layout())
 
-        if name == "UNKNOWN":
-            color = (0, 0, 255)
-        else:
-            color = (0, 255, 0)
-        cv2.rectangle(frame, (x1,y1), (x2,y2), color, 2)
-        cv2.putText(
-            frame,
-            f"Address: {address}",
-            (x1, y1 - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            color,
-            2
-        )
-        cv2.putText(
-            frame,
-            f"{name} ({best_score:.2f})",
-            (x1, y1 - 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            color,
-            2
-        )
-        
-    cv2.imshow("Face Recognition", frame)
+        layout = QVBoxLayout()
+        cam_widget = CameraWidget()
+        layout.addWidget(cam_widget)
+        self.main_content.setLayout(layout)
+    def clear_main_content(self):
+        layout = self.main_content.layout()
+        if layout is not None:
+            # Lấy tất cả widget trong layout
+            for i in reversed(range(layout.count())):
+                widget = layout.itemAt(i).widget()
+                if widget is not None:
+                    # Nếu là CameraWidget thì stop camera
+                    if isinstance(widget, CameraWidget):
+                        widget.stop_camera()
+                    widget.setParent(None)
+            QWidget().setLayout(layout)
+if __name__ == "__main__":
+    import sys
+    from PyQt6.QtWidgets import QApplication
 
-    if cv2.waitKey(1) & 0xFF == 27:
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+    app = QApplication(sys.argv)
+    dashboard = Dashboard()
+    dashboard.show()
+    sys.exit(app.exec())

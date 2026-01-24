@@ -3,6 +3,7 @@ from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QImage, QPixmap
 import cv2
 import os
+from collections import deque
 
 from modelsAI.unet.segmentaion import segment_face
 from modelsAI.insightFace.model import cosine_sim, app
@@ -23,6 +24,7 @@ class FaceWorker(QThread):
         self.face_db = face_db
         self.threshold = threshold
         self.running = True
+        self.mask_history = deque(maxlen=20)
 
     def run(self):
         while self.running:
@@ -30,13 +32,21 @@ class FaceWorker(QThread):
             if not ret:
                 continue
 
-            # --- xử lý mặt ---
+            # xử lý mặt 
             faces = app.get(frame) 
             results = []
             for face in faces:
-                x1, y1, x2, y2 = map(int, face.bbox)
+                x1, y1, x2, y2 = map(int, face.bbox)   
                 cropped_face = cropImage(frame, (x1, y1, x2, y2))
+        
+                cropped_face = cv2.GaussianBlur(cropped_face, (5,5), 0)
+                
                 has_mask = segment_face(cropped_face)
+                print("sgsggs",has_mask)
+        
+                self.mask_history.append(has_mask)
+                self.mask_history.append(1 if has_mask else 0)
+                final_mask = sum(self.mask_history) >=15
 
                 emb = face.normed_embedding
                 name = "UNKNOWN"
@@ -56,7 +66,7 @@ class FaceWorker(QThread):
                     age = "N/A"
                 results.append({
                     "bbox": (x1, y1, x2, y2),
-                    "mask": has_mask,
+                    "mask": final_mask,
                     "name": name,
                     "address": address,
                     "age":age,
@@ -88,7 +98,7 @@ class CameraWidget(QFrame):
         users = usersService.getListUsers()
         for name, user_info in users.items():
             face_db[name] = user_info
-        self.worker = FaceWorker(self.cap, face_db, THRESHOLD)  # truyền face_db
+        self.worker = FaceWorker(self.cap, face_db, THRESHOLD)  
         self.worker.update_frame_signal.connect(self.display_frame)
         self.worker.start()
 
@@ -96,14 +106,15 @@ class CameraWidget(QFrame):
         frame, faces = data
         # vẽ bounding box + text
         for f in faces:
-            print("ffff",f)
             x1, y1, x2, y2 = f["bbox"]
-            color = (0, 255, 0) if f["name"] != "UNKNOWN" else (0, 0, 255)
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            print("sggs",f)
             if f["mask"]:
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0,0,255), 2)
                 cv2.putText(frame, "Deo khau trang", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
                 continue
-            cv2.putText(frame, f'{f["name"]} - {f["age"]}T ({f["score"]:.2f})', (x1, y1-40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            color = (0, 255, 0) if f["name"] != "UNKNOWN" else (0, 0, 255)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            cv2.putText(frame, f'{f["name"]} - {f["age"]}T ', (x1, y1-40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             cv2.putText(frame, f'Address: {f["address"]}', (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
