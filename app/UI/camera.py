@@ -15,6 +15,19 @@ THRESHOLD = float(os.getenv("THRESHOLD", 0.7))
 from PyQt6.QtCore import QThread, pyqtSignal
 import time
 usersService = usersService()
+
+def iou(boxA, boxB):
+        xA = max(boxA[0], boxB[0])
+        yA = max(boxA[1], boxB[1])
+        xB = min(boxA[2], boxB[2])
+        yB = min(boxA[3], boxB[3])
+
+        inter = max(0, xB-xA) * max(0, yB-yA)
+        areaA = (boxA[2]-boxA[0])*(boxA[3]-boxA[1])
+        areaB = (boxB[2]-boxB[0])*(boxB[3]-boxB[1])
+        union = areaA + areaB - inter
+
+        return inter / union if union > 0 else 0
 class FaceWorker(QThread):
     update_frame_signal = pyqtSignal(object)
 
@@ -24,29 +37,42 @@ class FaceWorker(QThread):
         self.face_db = face_db
         self.threshold = threshold
         self.running = True
-        self.mask_history = deque(maxlen=20)
+        self.face_id_counter = 0
+        self.tracked_faces = {}
 
     def run(self):
         while self.running:
             ret, frame = self.cap.read()
             if not ret:
                 continue
-
+                
             # xử lý mặt 
             faces = app.get(frame) 
             results = []
             for face in faces:
                 x1, y1, x2, y2 = map(int, face.bbox)   
-                cropped_face = cropImage(frame, (x1, y1, x2, y2))
-        
-                cropped_face = cv2.GaussianBlur(cropped_face, (5,5), 0)
-                
+                cropped_face = cropImage(frame, (x1, y1, x2, y2))      
+                matched_id = None
+                for fid, data in self.tracked_faces.items():
+                    if iou(data["bbox"], (x1,y1,x2,y2)) > 0.5:
+                        matched_id = fid
+                        break
+
+                if matched_id is None:
+                    matched_id = self.face_id_counter
+                    self.face_id_counter += 1
+                    self.tracked_faces[matched_id] = {
+                        "bbox": (x1,y1,x2,y2),
+                        "mask_history": deque(maxlen=15)
+                    }
+
+                self.tracked_faces[matched_id]["bbox"] = (x1,y1,x2,y2)
+
                 has_mask = segment_face(cropped_face)
-                print("sgsggs",has_mask)
-        
-                self.mask_history.append(has_mask)
-                self.mask_history.append(1 if has_mask else 0)
-                final_mask = sum(self.mask_history) >=15
+                print("has_mák",has_mask)
+
+                self.tracked_faces[matched_id]["mask_history"].append(1 if has_mask else 0)
+                final_mask = sum(self.tracked_faces[matched_id]["mask_history"]) >= 10
 
                 emb = face.normed_embedding
                 name = "UNKNOWN"
@@ -54,12 +80,13 @@ class FaceWorker(QThread):
                 age = "N/A"
                 best_score = 0
                 for k, db in self.face_db.items():
-                    score = cosine_sim(emb, db["embedding_vector"])
-                    if score > best_score:
-                        best_score = score
-                        name = k
-                        address = db["address"]
-                        age = db["age"]
+                    for db_emb in db["embeddings"]:
+                        score = cosine_sim(emb, db_emb)
+                        if score > best_score:
+                            best_score = score
+                            name = k
+                            address = db["address"]
+                            age = db["age"]
                 if best_score < self.threshold:
                     name = "UNKNOWN"
                     address = "N/A"
@@ -98,6 +125,7 @@ class CameraWidget(QFrame):
         users = usersService.getListUsers()
         for name, user_info in users.items():
             face_db[name] = user_info
+        print("facedb",face_db)
         self.worker = FaceWorker(self.cap, face_db, THRESHOLD)  
         self.worker.update_frame_signal.connect(self.display_frame)
         self.worker.start()
@@ -107,15 +135,15 @@ class CameraWidget(QFrame):
         # vẽ bounding box + text
         for f in faces:
             x1, y1, x2, y2 = f["bbox"]
-            print("sggs",f)
             if f["mask"]:
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0,0,255), 2)
-                cv2.putText(frame, "Deo khau trang", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
-                continue
-            color = (0, 255, 0) if f["name"] != "UNKNOWN" else (0, 0, 255)
+                color = (0, 0, 255)
+                label = "Deo khau trang"
+            else:
+                color = (0, 255, 0) if f["name"] != "UNKNOWN" else (0, 0, 255)
+                label = f'{f["name"]} - {f["age"]}T'
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, f'{f["name"]} - {f["age"]}T ', (x1, y1-40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-            cv2.putText(frame, f'Address: {f["address"]}', (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            cv2.putText(frame, label, (x1, y1-10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
 
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = cv2.resize(frame, (self.width, self.height))

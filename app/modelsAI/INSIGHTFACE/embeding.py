@@ -15,4 +15,4 @@ def get_face_embedding(img,model_app):
     # L2 normalize
     emb = emb / np.linalg.norm(emb)
 
-    return emb.tolist()  # ready để lưu MongoDB
+    return emb.tolist()

@@ -189,13 +189,10 @@ QScrollArea {
 
         resident_faces = []
         for img_info in self.image_paths:
-            # Lấy embedding trực tiếp từ file ảnh, không lưu file
             print("shshhss",img_info["path"])
             embedding = get_embedding_from_image(img_info["path"])
             if embedding is None:
                 continue
-
-            # Lưu embedding + thông tin ảnh
             resident_faces.append({
                 "angle": img_info.get("góc ", "unknown"),
                 "distance": img_info.get("khoảng cách", "unknown"),

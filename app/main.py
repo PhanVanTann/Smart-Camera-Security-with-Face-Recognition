@@ -62,11 +62,9 @@ class Dashboard(QMainWindow):
     def clear_main_content(self):
         layout = self.main_content.layout()
         if layout is not None:
-            # Lấy tất cả widget trong layout
             for i in reversed(range(layout.count())):
                 widget = layout.itemAt(i).widget()
                 if widget is not None:
-                    # Nếu là CameraWidget thì stop camera
                     if isinstance(widget, CameraWidget):
                         widget.stop_camera()
                     widget.setParent(None)

@@ -8,16 +8,21 @@ class usersService:
         for user in self.users_collection.find({}):
             name = user.get("last_name", "N/A") + " " + user.get("first_name", "N/A")
             address = user.get("address", "N/A")
-            user['id'] = str(user['_id'])
+            user_id = str(user["_id"])
+
+            if name not in users:
+                users[name] = {
+                    "address": address,
+                    "age": user.get("age", "N/A"),
+                    "id": user_id,
+                    "embeddings": []  
+                }
+
             for embedding in user.get("embeddings", []):
-                vector = embedding.get("vector", [])
+                vector = embedding.get("vector")
                 if vector is None:
                     continue
                 emb = np.array(vector, dtype=np.float32)
-                users[name] = {
-                    "address": address,
-                    "age":user['age'],
-                    "id": user['id'],
-                    "embedding_vector": emb
-                }
+                users[name]["embeddings"].append(emb)
+
         return users
