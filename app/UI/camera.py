@@ -63,7 +63,7 @@ class FaceWorker(QThread):
                     self.face_id_counter += 1
                     self.tracked_faces[matched_id] = {
                         "bbox": (x1,y1,x2,y2),
-                        "mask_history": deque(maxlen=15)
+                        "mask_history": deque(maxlen=10)
                     }
 
                 self.tracked_faces[matched_id]["bbox"] = (x1,y1,x2,y2)
@@ -72,7 +72,7 @@ class FaceWorker(QThread):
                 print("has_mák",has_mask)
 
                 self.tracked_faces[matched_id]["mask_history"].append(1 if has_mask else 0)
-                final_mask = sum(self.tracked_faces[matched_id]["mask_history"]) >= 10
+                final_mask = sum(self.tracked_faces[matched_id]["mask_history"]) >= 7
 
                 emb = face.normed_embedding
                 name = "UNKNOWN"

@@ -1,23 +1,31 @@
+# Core
 opencv-python
 numpy
-mtcnn
-keras-facenet
-tensorflow
-scikit-learn
-pymongo
 matplotlib
-fastapi
-uvicorn
 python-dotenv
-cloudinary
 python-multipart
-ultralytics
-retina-face
-tf-keras
-insightface
-onnxruntime
-insightface
+scikit-learn
+
+# GUI
+PyQt6
+
+# AI & Machine Learning
 torch
 torchvision
+tensorflow
+tf-keras
+ultralytics
 segmentation-models-pytorch
-pyqt5
+onnxruntime
+
+# Face Recognition
+insightface
+retina-face
+mtcnn
+keras-facenet
+
+# Backend & API
+fastapi
+uvicorn
+pymongo
+cloudinary
